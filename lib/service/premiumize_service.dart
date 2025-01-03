@@ -1,12 +1,13 @@
-import 'package:bloc/bloc.dart';
-
-import 'api_service.dart';
-import 'api/folder_model.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:premflix/api/folder_model.dart';
+import 'package:premflix/api_service.dart';
 
 class PremiumizeService extends Cubit<List<FolderModel>> {
   final FolderApiService _apiService;
 
-  PremiumizeService(FolderApiService folderApiService): _apiService = folderApiService, super([]);
+  PremiumizeService(FolderApiService folderApiService)
+      : _apiService = folderApiService,
+        super([]);
 
   void setup(String authToken) {
     _apiService.setup(authToken);

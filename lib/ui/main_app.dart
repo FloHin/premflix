@@ -1,34 +1,75 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:premflix/ui/folder_viewer_screen.dart';
 
-class MainApp extends StatelessWidget {
+import '../main.dart';
+import '../service/auth_service.dart';
+import 'auth_screen.dart';
+
+class MainApp extends StatefulWidget {
   const MainApp({super.key});
+
+  @override
+  State<MainApp> createState() => _MainAppState();
+}
+
+class _MainAppState extends State<MainApp> {
+  final _authService = sl<AuthService>();
+
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _appLinks = AppLinks();
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      debugPrint('_MainAppState uriLinkStream: $uri');
+      if (uri.scheme == kWindowsScheme) {
+        // Handle the OAuth redirect here
+        final code = uri.queryParameters['code'];
+        if (code != null) {
+          // Complete the OAuth grant with the received code
+          print('Received OAuth code: $code');
+        }
+        _authService.continueAuthentication(uri);
+      }
+    });
+  }
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
+    const bool isAuthorized = false; // Replace this with actual authorization check.
+    final GoRouter router = GoRouter(
+      navigatorKey: navigatorKey,
+      initialLocation: isAuthorized ? '/folders' : '/auth',
+      routes: [
+        GoRoute(
+          path: '/auth',
+          builder: (context, state) => AuthScreenWidget(state: state),
+        ),
+        GoRoute(
+          path: '/authenticate',
+          builder: (context, state) => AuthScreenWidget(state: state),
+        ),
+        GoRoute(
+          path: '/folders',
+          name: 'folders',
+          builder: (context, state) => const FolderViewerScreen(),
+        ),
+      ],
+    );
+    return MaterialApp.router(
+      title: 'Premiumize Viewer',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const FolderViewerScreen(),
+      routerConfig: router,
     );
   }
 }

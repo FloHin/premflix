@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:premflix/api/folder_model.dart';
 import 'package:premflix/main.dart';
-import 'package:premflix/premiumize_service.dart';
+import 'package:premflix/service/premiumize_service.dart';
 
 class FolderViewerScreen extends StatefulWidget {
-  const FolderViewerScreen({Key? key}) : super(key: key);
+  const FolderViewerScreen({super.key});
 
   @override
   State<FolderViewerScreen> createState() => _FolderViewerScreenState();
