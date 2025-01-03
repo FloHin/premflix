@@ -13,26 +13,25 @@ class FolderViewerScreen extends StatefulWidget {
 
 class _FolderViewerScreenState extends State<FolderViewerScreen> {
   final PremiumizeService _viewModel = sl<PremiumizeService>();
-  Content? selectedFolder;
 
   @override
   void initState() {
     super.initState();
-    _viewModel.loadFolders();
+    _viewModel.loadIndex();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Folder Viewer')),
-      body: Column(
+      body: Row(
         children: [
           Expanded(
             child: BlocBuilder<PremiumizeService, FolderState>(
               bloc: _viewModel,
               builder: (context, state) {
-                if (state is FolderLoaded) {
-                  final contents = state.folderResponse.content ?? [];
+                if (state is FolderLoaded || state is FolderIndex) {
+                  final contents = state.folders;
                   return ListView.builder(
                     itemCount: contents.length,
                     itemBuilder: (context, index) {
@@ -41,7 +40,7 @@ class _FolderViewerScreenState extends State<FolderViewerScreen> {
                         title: Text(folder.name),
                         onTap: () {
                           setState(() {
-                            selectedFolder = folder;
+                            _viewModel.loadFolder(folder.id);
                           });
                         },
                       );
@@ -53,20 +52,33 @@ class _FolderViewerScreenState extends State<FolderViewerScreen> {
               },
             ),
           ),
-          // Expanded(
-          //   child: selectedFolder == null
-          //       ? const Center(child: Text('Select a folder'))
-          //       : ListView.builder(
-          //           itemCount: selectedFolder!.content.length,
-          //           itemBuilder: (context, index) {
-          //             final content = selectedFolder!.content[index];
-          //             return ListTile(
-          //               title: Text(content.name),
-          //               subtitle: Text(content.type),
-          //             );
-          //           },
-          //         ),
-          // ),
+          Expanded(
+            child: BlocBuilder<PremiumizeService, FolderState>(
+                bloc: _viewModel,
+                builder: (context, state) {
+                  if (state is FolderLoaded) {
+                    final items = state.folderResponse.content ?? [];
+                   return
+                    ListView.builder(
+                            itemCount: items.length,
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              return ListTile(
+                                title: Text(item.name),
+                                subtitle: Text(item.type),
+                                onTap: () {
+                                  setState(() {
+                                    _viewModel.streamFile(item);
+                                  });
+                                },
+                              );
+                            },
+                          );
+                  } else {
+                    return const Center(child: Text('Select a folder'));
+                  }
+                }),
+          ),
         ],
       ),
     );

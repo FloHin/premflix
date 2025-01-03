@@ -24,6 +24,7 @@ dependencies:
   webview_flutter: ^4.10.0
   protocol_handler: ^0.2.0
   path_provider: ^2.1.5
+  open_file: ^3.5.10
 
 dev_dependencies:
   flutter_test:

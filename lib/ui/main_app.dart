@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:premflix/main.dart';
+import 'package:premflix/service/auth_service.dart';
 import 'package:premflix/ui/folder_viewer_screen.dart';
 
-import '../main.dart';
-import '../service/auth_service.dart';
 import 'auth_screen.dart';
 
 class MainApp extends StatefulWidget {

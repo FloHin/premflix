@@ -13,6 +13,7 @@ class Content {
   final String? transcodeStatus;
   final String? link;
   final String? streamLink;
+  final String? directlink;
   final String? virusScan;
 
   Content({
@@ -25,6 +26,7 @@ class Content {
     this.transcodeStatus,
     this.link,
     this.streamLink,
+    this.directlink,
     this.virusScan,
   });
 

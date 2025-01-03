@@ -31,8 +31,11 @@ class PremiumizeApi {
     _apiKey = apiKey;
   }
 
-  Future<FolderResponse> getFolderList() async {
+  Future<FolderResponse> getFolderList(String? id) async {
     final params = buildParams();
+    if (id != null) {
+      params["id"] = id;
+    }
     try {
       final response = await _dio.get('/api/folder/list', queryParameters: params);
       final data = response.data is String ? jsonDecode(response.data) : response.data;
