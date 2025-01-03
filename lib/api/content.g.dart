@@ -10,13 +10,13 @@ Content _$ContentFromJson(Map<String, dynamic> json) => Content(
       id: json['id'] as String,
       name: json['name'] as String,
       type: json['type'] as String,
-      size: (json['size'] as num).toInt(),
-      createdAt: (json['createdAt'] as num).toInt(),
-      mimeType: json['mimeType'] as String,
-      transcodeStatus: json['transcodeStatus'] as String,
-      link: json['link'] as String,
-      streamLink: json['streamLink'] as String,
-      virusScan: json['virusScan'] as String,
+      size: (json['size'] as num?)?.toInt(),
+      createdAt: (json['createdAt'] as num?)?.toInt(),
+      mimeType: json['mimeType'] as String?,
+      transcodeStatus: json['transcodeStatus'] as String?,
+      link: json['link'] as String?,
+      streamLink: json['streamLink'] as String?,
+      virusScan: json['virusScan'] as String?,
     );
 
 Map<String, dynamic> _$ContentToJson(Content instance) => <String, dynamic>{

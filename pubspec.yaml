@@ -23,6 +23,7 @@ dependencies:
   flutter_dotenv: ^5.2.1
   webview_flutter: ^4.10.0
   protocol_handler: ^0.2.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

@@ -1,42 +1,79 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:oauth2/oauth2.dart' as oauth2;
 import 'package:oauth2/oauth2.dart';
-import 'package:premflix/main.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 final authorizationEndpoint = Uri.parse('https://www.premiumize.me/authorize');
 final tokenEndpoint = Uri.parse('https://www.premiumize.me/token');
 final redirectUrl = Uri.parse('premiumizeviewer://authenticate');
-final credentialsFile = File('~/.myapp/credentials.json');
+const credentialsFilePath = 'credentials.json';
+const apiKeyPath = 'apiKey.txt';
 
 class AuthService extends Cubit<AuthState> {
   String clientId;
   String clientSecret;
+
   AuthService({required this.clientId, required this.clientSecret}) : super(AuthNone());
 
   oauth2.Client? _client;
+  String? _accessToken;
+  String? _apiKey;
 
   late AuthorizationCodeGrant _grant;
 
   oauth2.Client? get client => _client;
 
-  Future<void> authenticate() async {
+  String? get accessToken => _accessToken;
+
+  String? get apiKey => _apiKey;
+
+  Future<void> reload() async {
+    debugPrint('authenticate: ');
+    var hasApiKey = await _getFile(apiKeyPath, create: false);
+    var hasCredentials = await _getFile(credentialsFilePath, create: false);
+
+    if (await hasApiKey.exists()) {
+      var apiKeyFile = await _getFile(apiKeyPath, create: false);
+      debugPrint('authenticate: read from apiKeyFile');
+      _apiKey = await apiKeyFile.readAsString();
+
+      if (await hasCredentials.exists()) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        _client = await _existingClient();
+        emit(AuthLoaded());
+      } else {
+        emit(AuthNone());
+      }
+    }
+  }
+
+  Future<void> authenticate(String apiKey) async {
     debugPrint('authenticate: ');
     // Simulate authentication process
-    await Future.delayed(const Duration(seconds: 1));
-    var exists = await credentialsFile.exists();
-    debugPrint('authenticate: exists=$exists');
 
-    if (exists) {
+    var hasApiKey = await _getFile(apiKeyPath, create: false);
+    var hasCredentials = await _getFile(credentialsFilePath, create: false);
+    debugPrint('authenticate: exists=$hasCredentials');
+
+    _apiKey = apiKey;
+    if (!await hasApiKey.exists()) {
+      var apiKeyFile = await _getFile(apiKeyPath, create: true);
+      debugPrint('authenticate: write apiKeyFile');
+      apiKeyFile.writeAsString(_apiKey!);
+    }
+    if (await hasCredentials.exists()) {
+      await Future.delayed(const Duration(milliseconds: 100));
       _client = await _existingClient();
       emit(AuthLoaded());
     } else {
-      _startAuthentication();
       emit(AuthStep1());
+      await Future.delayed(const Duration(milliseconds: 200));
+      _startAuthentication();
     }
   }
 
@@ -47,9 +84,16 @@ class AuthService extends Cubit<AuthState> {
       _client = await _grant.handleAuthorizationResponse(redirectUri.queryParameters);
       debugPrint('continueAuthentication: ${_client.toString()}');
       debugPrint('continueAuthentication: ${_client?.credentials.toString()}');
-
+      var contents = _client?.credentials.toJson();
+      _accessToken = _client?.credentials.accessToken;
+      if (contents != null) {
+        debugPrint('write JSON : $contents');
+        final credentialsFile = await _getFile(credentialsFilePath, create: true);
+        await credentialsFile.writeAsString(contents, encoding: Encoding.getByName("utf-8")!, flush: true);
+        var exists = await credentialsFile.exists();
+        debugPrint('authenticate: written=$exists');
+      }
       emit(AuthAuthenticated());
-      navigatorKey.currentState?.pushNamed("folders");
     } on Exception catch (e) {
       emit(AuthAuthenticationError(e.toString()));
     }
@@ -62,8 +106,10 @@ class AuthService extends Cubit<AuthState> {
   }
 
   Future<oauth2.Client> _existingClient() async {
+    final credentialsFile = await _getFile(credentialsFilePath, create: false);
     var credentials = oauth2.Credentials.fromJson(await credentialsFile.readAsString());
     debugPrint('_existingClient: ');
+    _accessToken = credentials.accessToken;
     return oauth2.Client(credentials, identifier: clientId, secret: clientSecret);
   }
 
@@ -73,7 +119,7 @@ class AuthService extends Cubit<AuthState> {
     // A URL on the authorization server (authorizationEndpoint with some additional
     // query parameters). Scopes and state can optionally be passed into this method.
     final randStateString = DateTime.timestamp().toString();
-    var authorizationUrl = _grant.getAuthorizationUrl(redirectUrl, state:randStateString);
+    var authorizationUrl = _grant.getAuthorizationUrl(redirectUrl, state: randStateString);
     debugPrint('_startAuthentication: authorizationUrl $authorizationUrl');
 
     // `redirect` and `listen` are not shown implemented here. See below for the
@@ -84,39 +130,61 @@ class AuthService extends Cubit<AuthState> {
       return false;
     }
   }
+
+  Future<File> _getFile(String path, {required bool create}) async {
+    final Directory directory = await getApplicationCacheDirectory();
+    // final Directory directory = Directory("${cacheDir.path}/$appPath");
+    final dirExists = await directory.exists();
+    if (!dirExists) {
+      await directory.create();
+    }
+    final file = File("${directory.path}/$path");
+    final fileExists = await directory.exists();
+    if (create && !fileExists) {
+      await file.create();
+    }
+    return file;
+  }
+
 }
 
 abstract class AuthState {
   bool authenticated = false;
+  bool isLoading = false;
 
-  AuthState(this.authenticated);
+  AuthState(this.authenticated, this.isLoading);
+}
+
+class AuthInit extends AuthState {
+  AuthInit() : super(false, true);
 }
 
 class AuthNone extends AuthState {
-  AuthNone() : super(false);
+  AuthNone() : super(false, false);
 }
 
 class AuthAuthenticated extends AuthState {
-  AuthAuthenticated() : super(true);
+  AuthAuthenticated() : super(true, false);
 }
 
 class AuthLoaded extends AuthState {
-  AuthLoaded() : super(true);
+  AuthLoaded() : super(true, false);
 }
 
 class AuthStep1 extends AuthState {
-  AuthStep1() : super(false);
+  AuthStep1() : super(false, true);
 }
 
 class AuthStep2 extends AuthState {
-  AuthStep2() : super(false);
+  AuthStep2() : super(false, true);
 }
 
 class AuthRefreshed extends AuthState {
-  AuthRefreshed() : super(true);
+  AuthRefreshed() : super(true, false);
 }
 
 class AuthAuthenticationError extends AuthState {
   String message;
-  AuthAuthenticationError(this.message) : super(false);
+
+  AuthAuthenticationError(this.message) : super(false, false);
 }

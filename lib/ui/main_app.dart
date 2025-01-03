@@ -43,10 +43,9 @@ class _MainAppState extends State<MainApp> {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    const bool isAuthorized = false; // Replace this with actual authorization check.
     final GoRouter router = GoRouter(
       navigatorKey: navigatorKey,
-      initialLocation: isAuthorized ? '/folders' : '/auth',
+      initialLocation: '/auth',
       routes: [
         GoRoute(
           path: '/auth',

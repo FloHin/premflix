@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
-import 'package:premflix/api_service.dart';
+import 'package:premflix/api/premiumize_api.dart';
 import 'package:premflix/service/auth_service.dart';
 import 'package:premflix/service/premiumize_service.dart';
 import 'package:premflix/ui/auth_screen.dart';
@@ -21,11 +21,11 @@ void setupLocator({
   required clientId,
   required clientSecret,
 }) {
-  final folderApiService = FolderApiService(apiKey: "");
+  final folderApiService = PremiumizeApi(apiKey: "");
   // var goRouter = createRouter();
   // sl.registerSingleton<GoRouter>(goRouter);
   sl.registerLazySingleton<AuthService>(() => AuthService(clientId: clientId, clientSecret: clientSecret));
-  sl.registerLazySingleton<FolderApiService>(() => folderApiService);
+  sl.registerLazySingleton<PremiumizeApi>(() => folderApiService);
   sl.registerFactory<PremiumizeService>(() => PremiumizeService(folderApiService));
 }
 
