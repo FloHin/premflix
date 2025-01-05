@@ -40,7 +40,11 @@ class PremiumizeApi {
       final response = await _dio.get('/api/folder/list', queryParameters: params);
       final data = response.data is String ? jsonDecode(response.data) : response.data;
       if (response.statusCode == 200 && data != null) {
-        return FolderResponse.fromJson(data); // Parse response
+        FolderResponse folderResponse = FolderResponse.fromJson(data);
+        if (id != null) {
+          folderResponse.folderId = id;
+        } // Parse response
+        return folderResponse;
       } else {
         throw Exception('Failed to load folders. Status code: ${response.statusCode}');
       }

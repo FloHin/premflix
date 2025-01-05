@@ -58,15 +58,15 @@ class _AuthScreenState extends State<AuthScreenWidget> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 20),
-              (state is AuthAuthenticationError) ? Text(state.message) : SizedBox(),
+              (state is AuthAuthenticationError) ? Text(state.message) : const SizedBox(),
               TextField(controller: apiKeyController),
               (!isLoading)
                   ? MaterialButton(
-                      child: const Text("Connect with your premiumize.me account"),
                       onPressed: () {
                         startAuthentication(apiKey: apiKeyController.text);
                       },
                       color: Colors.purple,
+                      child: const Text("Connect with your premiumize.me account"),
                     )
                   : const CircularProgressIndicator(),
             ],

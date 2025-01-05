@@ -1,12 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:oauth2/oauth2.dart' as oauth2;
-import 'package:oauth2/oauth2.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import 'internal_storage_service.dart';
 
 final authorizationEndpoint = Uri.parse('https://www.premiumize.me/authorize');
 final tokenEndpoint = Uri.parse('https://www.premiumize.me/token');
@@ -24,7 +23,7 @@ class AuthService extends Cubit<AuthState> {
   String? _accessToken;
   String? _apiKey;
 
-  late AuthorizationCodeGrant _grant;
+  late oauth2.AuthorizationCodeGrant _grant;
 
   oauth2.Client? get client => _client;
 
@@ -34,11 +33,11 @@ class AuthService extends Cubit<AuthState> {
 
   Future<void> reload() async {
     debugPrint('authenticate: ');
-    var hasApiKey = await _getFile(apiKeyPath, create: false);
-    var hasCredentials = await _getFile(credentialsFilePath, create: false);
+    var hasApiKey = await InternalStorageService.getFile(apiKeyPath, create: false);
+    var hasCredentials = await InternalStorageService.getFile(credentialsFilePath, create: false);
 
     if (await hasApiKey.exists()) {
-      var apiKeyFile = await _getFile(apiKeyPath, create: false);
+      var apiKeyFile = await InternalStorageService.getFile(apiKeyPath, create: false);
       debugPrint('authenticate: read from apiKeyFile');
       _apiKey = await apiKeyFile.readAsString();
 
@@ -56,13 +55,13 @@ class AuthService extends Cubit<AuthState> {
     debugPrint('authenticate: ');
     // Simulate authentication process
 
-    var hasApiKey = await _getFile(apiKeyPath, create: false);
-    var hasCredentials = await _getFile(credentialsFilePath, create: false);
+    var hasApiKey = await InternalStorageService.getFile(apiKeyPath, create: false);
+    var hasCredentials = await InternalStorageService.getFile(credentialsFilePath, create: false);
     debugPrint('authenticate: exists=$hasCredentials');
 
     _apiKey = apiKey;
     if (!await hasApiKey.exists()) {
-      var apiKeyFile = await _getFile(apiKeyPath, create: true);
+      var apiKeyFile = await InternalStorageService.getFile(apiKeyPath, create: true);
       debugPrint('authenticate: write apiKeyFile');
       apiKeyFile.writeAsString(_apiKey!);
     }
@@ -88,7 +87,7 @@ class AuthService extends Cubit<AuthState> {
       _accessToken = _client?.credentials.accessToken;
       if (contents != null) {
         debugPrint('write JSON : $contents');
-        final credentialsFile = await _getFile(credentialsFilePath, create: true);
+        final credentialsFile = await InternalStorageService.getFile(credentialsFilePath, create: true);
         await credentialsFile.writeAsString(contents, encoding: Encoding.getByName("utf-8")!, flush: true);
         var exists = await credentialsFile.exists();
         debugPrint('authenticate: written=$exists');
@@ -106,7 +105,7 @@ class AuthService extends Cubit<AuthState> {
   }
 
   Future<oauth2.Client> _existingClient() async {
-    final credentialsFile = await _getFile(credentialsFilePath, create: false);
+    final credentialsFile = await InternalStorageService.getFile(credentialsFilePath, create: false);
     var credentials = oauth2.Credentials.fromJson(await credentialsFile.readAsString());
     debugPrint('_existingClient: ');
     _accessToken = credentials.accessToken;
@@ -130,22 +129,6 @@ class AuthService extends Cubit<AuthState> {
       return false;
     }
   }
-
-  Future<File> _getFile(String path, {required bool create}) async {
-    final Directory directory = await getApplicationCacheDirectory();
-    // final Directory directory = Directory("${cacheDir.path}/$appPath");
-    final dirExists = await directory.exists();
-    if (!dirExists) {
-      await directory.create();
-    }
-    final file = File("${directory.path}/$path");
-    final fileExists = await directory.exists();
-    if (create && !fileExists) {
-      await file.create();
-    }
-    return file;
-  }
-
 }
 
 abstract class AuthState {

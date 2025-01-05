@@ -8,7 +8,7 @@ import 'package:premflix/api/premiumize_api.dart';
 import 'package:premflix/service/auth_service.dart';
 import 'package:premflix/service/premiumize_service.dart';
 import 'package:premflix/ui/auth_screen.dart';
-import 'package:premflix/ui/folder_viewer_screen.dart';
+import 'package:premflix/ui/folder_viewer/folder_viewer_screen.dart';
 import 'package:premflix/ui/main_app.dart';
 import 'package:protocol_handler/protocol_handler.dart';
 // import 'package:protocol_handler/protocol_handler.dart';
@@ -62,6 +62,5 @@ Future<void> main() async {
   // var client = await createClient();
 
   await protocolHandler.register(kWindowsScheme);
-
   runApp(const MainApp());
 }
