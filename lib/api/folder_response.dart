@@ -30,5 +30,6 @@ class FolderResponse {
   }
 
   factory FolderResponse.fromJson(Map<String, dynamic> json) => _$FolderResponseFromJson(json);
+
   Map<String, dynamic> toJson() => _$FolderResponseToJson(this);
 }

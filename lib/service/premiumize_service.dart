@@ -10,6 +10,8 @@ import 'package:premflix/service/internal_storage_service.dart';
 import 'package:premflix/service/item_config.dart';
 
 const cacheFilePath = "foldersCache.json";
+const seasonPrefix = "SEASON-";
+final seriesRegex = RegExp(r's[0-9]{1,2}e[0-9]{1,3}', caseSensitive: false);
 
 class PremiumizeService extends Cubit<FolderState> {
   final PremiumizeApi _api;
@@ -18,11 +20,12 @@ class PremiumizeService extends Cubit<FolderState> {
 
   // Map<String, List<Item>> _folderFilesMap = {};
   final Map<String, FolderResponse> _responseMap = {};
+  final Map<String, Map<String, String>> _seriesFolderMap = {};
   final Map<String, ItemConfig> _itemConfig = {};
 
   bool _showStarredOnly = false;
   bool _showHidden = false;
-  String? folderId;
+  String? currentFolderId;
 
   PremiumizeService(PremiumizeApi api)
       : _api = api,
@@ -69,23 +72,48 @@ class PremiumizeService extends Cubit<FolderState> {
     }
   }
 
-  Future<void> loadFolder(String id) async {
-    if (_responseMap[id] != null) {
-      debugPrint("loadFolder returns folderFilesMap[id=$id] from cache");
-      emit(FolderLoaded(_filterCurrent(_indexFolderMap!.values), _responseMap[id]!));
-      // enrichAndEmit(id);
+  Future<void> loadFolder(String folderId) async {
+    if (_responseMap[folderId] != null) {
+      debugPrint("loadFolder returns folderFilesMap[id=$folderId] from cache");
+      var folderContent = _responseMap[folderId]!;
+      if (folderContent.config?.series ?? false) {
+        buildSeriesMap(folderContent);
+        final seasons = _seriesFolderMap[folderId] ?? {};
+        emit(SeriesFolderLoaded(_filterCurrent(_indexFolderMap!.values), folderContent, seasons, null));
+      } else {
+        emit(FolderLoaded(_filterCurrent(_indexFolderMap!.values), folderContent));
+      }
       return;
     }
 
     try {
-      FolderResponse folderResponse = await _api.getFolderList(id);
-      _responseMap[id] = folderResponse;
-      enrichAndEmit(id);
+      FolderResponse folderResponse = await _api.getFolderList(folderId);
+      _responseMap[folderId] = folderResponse;
+      enrichAndEmit(folderId);
     } catch (e, s) {
       emit(FolderLoadError(e.toString()));
       debugPrintStack(stackTrace: s);
       throw Exception('Failed to load folders: $e');
     }
+  }
+
+  Future<void> loadSeason(String id) async {
+    final season = _responseMap[id];
+    if (season == null) {
+      debugPrint("loadSeason returns season == null");
+      return;
+    }
+    final parent = _responseMap[season.parentId!];
+    if (parent == null) {
+      debugPrint("loadSeason returns parent == null");
+      return;
+    }
+    final seasonMap = _seriesFolderMap[parent.folderId];
+    if (seasonMap == null) {
+      debugPrint("loadSeason returns seasonMap == null");
+      return;
+    }
+    emit(SeriesFolderLoaded(_filterCurrent(_indexFolderMap!.values), season, seasonMap, id));
   }
 
   ItemConfig _getOrCreateItemConfig(String id) {
@@ -138,6 +166,13 @@ class PremiumizeService extends Cubit<FolderState> {
     enrichAndEmit(folderId);
   }
 
+  void setSeries(String folderId, bool value) {
+    debugPrint("setSeries $folderId $value");
+    ItemConfig config = _getOrCreateItemConfig(folderId);
+    _itemConfig[folderId] = config.copyWith(series: true);
+    enrichAndEmit(folderId);
+  }
+
   void enrichAndEmit(String folderId) {
     FolderResponse folderContent = _responseMap[folderId]!;
     var itemConfig = _getOrCreateItemConfig(folderId);
@@ -149,9 +184,15 @@ class PremiumizeService extends Cubit<FolderState> {
     });
 
     _responseMap[folderId] = folderContent;
-    _indexFolderMap![folderId] = _indexFolderMap![folderId]!..config= itemConfig;
+    _indexFolderMap![folderId] = _indexFolderMap![folderId]!..config = itemConfig;
 
-    emit(FolderLoaded(_filterCurrent(_indexFolderMap!.values), folderContent));
+    if (folderContent.config?.series ?? false) {
+      buildSeriesMap(folderContent);
+      final seasons = _seriesFolderMap[folderId] ?? {};
+      emit(SeriesFolderLoaded(_filterCurrent(_indexFolderMap!.values), folderContent, seasons, null));
+    } else {
+      emit(FolderLoaded(_filterCurrent(_indexFolderMap!.values), folderContent));
+    }
     writeToStorage();
   }
 
@@ -180,6 +221,55 @@ class PremiumizeService extends Cubit<FolderState> {
     debugPrint("writeToStorage writes ${_itemConfig.length} elements");
   }
 
+  /// Scan all items of folder and create virtual subfolders for seasons.
+  /// Store seasons in the series map with a newly created FolderContent for the season.
+  void buildSeriesMap(FolderResponse folderContent) {
+    // 1. get seasons
+    final Map<String, FolderResponse> seasonsFolderMap = {};
+    final Map<String, String> seasonsNamesMap = {};
+
+    var folderId = folderContent.folderId ?? 'folderId';
+
+    for (Item item in folderContent.content ?? []) {
+      String name = item.name;
+      if (seriesRegex.hasMatch(name)) {
+        final match = seriesRegex.firstMatch(name);
+        final matchedText = match?.group(0)?.toLowerCase();
+        if (matchedText != null) {
+          final seasonKey = matchedText.substring(0, matchedText.indexOf("e")).toUpperCase();
+          final seriesSeasonFolderKey = "$seasonPrefix$folderId-$seasonKey";
+          if (_responseMap.containsKey(seriesSeasonFolderKey)) {
+            continue;
+          }
+          FolderResponse seasonFolder;
+          if (!seasonsFolderMap.containsKey(seriesSeasonFolderKey)) {
+            seasonFolder = FolderResponse(
+              status: "",
+              content: [],
+              breadcrumbs: [],
+              name: "${folderContent.name ?? ''} $seasonKey".trim(),
+              parentId: folderContent.folderId,
+              folderId: seriesSeasonFolderKey,
+            );
+          } else {
+            seasonFolder = seasonsFolderMap[seriesSeasonFolderKey]!;
+          }
+
+          seasonsFolderMap[seriesSeasonFolderKey] = seasonFolder;
+          seasonsNamesMap[seriesSeasonFolderKey] = seasonKey;
+          seasonFolder.content?.add(item);
+        }
+      }
+    }
+
+    if (seasonsFolderMap.isNotEmpty) {
+      seasonsFolderMap.forEach((String key, FolderResponse value) {
+        _responseMap[key] = value;
+      });
+      _seriesFolderMap[folderId] = seasonsNamesMap;
+    }
+  }
+
 // void openFile(Content item) {
 //   debugPrint("open item: ${item.toString()}");
 //   final link = "https://www.premiumize.me/play.xspf?location=${item.streamLink}";
@@ -205,6 +295,13 @@ class FolderLoaded extends FolderState {
   FolderResponse folderResponse;
 
   FolderLoaded(super.folders, this.folderResponse);
+}
+
+class SeriesFolderLoaded extends FolderLoaded {
+  Map<String, String> seasons;
+  String? currentSeason;
+
+  SeriesFolderLoaded(super.folders, super.folderResponse, this.seasons, this.currentSeason);
 }
 
 class FolderLoadError extends FolderState {

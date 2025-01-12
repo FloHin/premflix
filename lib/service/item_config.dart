@@ -8,6 +8,7 @@ class ItemConfig {
   String id;
   bool starred;
   bool hidden;
+  bool series;
   DateTime? clickedAt;
   DateTime? openedAt;
 
@@ -15,6 +16,7 @@ class ItemConfig {
     this.id, {
     this.starred = false,
     this.hidden = false,
+    this.series = false,
     this.clickedAt,
     this.openedAt,
   });
@@ -22,6 +24,7 @@ class ItemConfig {
   ItemConfig copyWith({
     bool? starred,
     bool? hidden,
+    bool? series,
     DateTime? clickedAt,
     DateTime? openedAt,
   }) {
@@ -29,6 +32,7 @@ class ItemConfig {
       id,
       starred: starred ?? this.starred,
       hidden: hidden ?? this.hidden,
+      series: series ?? this.series,
       clickedAt: clickedAt ?? this.clickedAt,
       openedAt: openedAt ?? this.openedAt,
     );
